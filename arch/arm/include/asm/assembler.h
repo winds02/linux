@@ -344,19 +344,23 @@
  */
 .macro safe_svcmode_maskall reg:req
 #if __LINUX_ARM_ARCH__ >= 6 && !defined(CONFIG_CPU_V7M)
-	mrs	\reg , cpsr
-	eor	\reg, \reg, #HYP_MODE
-	tst	\reg, #MODE_MASK
-	bic	\reg , \reg , #MODE_MASK
-	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE
+	mrs	\reg , cpsr			
+	eor	\reg, \reg, #HYP_MODE		
+	tst	\reg, #MODE_MASK		
+	bic	\reg , \reg , #MODE_MASK	
+						
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT | SVC_MODE	
+						
 THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
-	bne	1f
-	orr	\reg, \reg, #PSR_A_BIT
-	adr	lr, BSYM(2f)
-	msr	spsr_cxsf, \reg
+	bne	1f				
+	orr	\reg, \reg, #PSR_A_BIT		
+						
+	adr	lr, BSYM(2f)			
+	msr	spsr_cxsf, \reg			
+						
 	__MSR_ELR_HYP(14)
 	__ERET
-1:	msr	cpsr_c, \reg
+1:	msr	cpsr_c, \reg			
 2:
 #else
 /*
