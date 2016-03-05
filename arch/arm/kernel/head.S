@@ -34,23 +34,63 @@
  * the least significant 16 bits to be 0x8000, but we could probably
  * relax this restriction to KERNEL_RAM_VADDR >= PAGE_OFFSET + 0x4000.
  */
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * KERNEL_RAM_VADDR : 커널의 가상 메모리 주소
+ *  예를들어, 32bit에서 3/1GB 로 영역을 split했을 때, 1GB의 시작주소이다.
+ *
+ * 커널 스플릿 설정에 따라서 PAGE_OFFSET의 주소가 다른데, 
+ *
+ * default PHYS_OFFSET if !MMU
+ * default 0x40000000 if VMSPLIT_1G
+ * default 0x80000000 if VMSPLIT_2G
+ * default 0xC0000000
+ *
+ * 라즈베리파이는 2/2GB 로 스플릿을 하기 때문에 0x80000000 로 설정된다.
+ *
+ * KERNEL_RAM_VADDR: 0x80000000 + 0x8000 = 0x80008000 가 실제 커널의 가상메모리
+ * 시작주소가 된다
+ *
+ * 참고] 위의 설정을 보고 싶으면 /boot/config-리눅스버전 파일 안에 모두 기록되어
+ *       있다.
+ */
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 #if (KERNEL_RAM_VADDR & 0xffff) != 0x8000
 #error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
 
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * LPAE: 32bit에서 4GB이상 메모리를 지원하기 위해 사용했던 설정
+ */
 #ifdef CONFIG_ARM_LPAE
 	/* LPAE requires an additional page for the PGD */
 #define PG_DIR_SIZE	0x5000
 #define PMD_ORDER	3
 #else
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * PG_DIR_SIZE: 32K (페이지테이블 사이즈)
+ * 0x4000 = 2^15 = 2^5 * 2^10 = 32 * 1K 
+ */
 #define PG_DIR_SIZE	0x4000
 #define PMD_ORDER	2
 #endif
 
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * swapper_pg_dir: 0x80004000 이다. 
+ */
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
 
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ *  page table 물리주소를 구하기 위한 매크로
+ *	rd = phys + TEXT_OFFSET - PG_DIR_SIZE;
+ *	rd = phys + 0x8000 - 0x4000;
+ *	rd = phys + 0x4000
+ */
 	.macro	pgtbl, rd, phys
 	add	\rd, \phys, #TEXT_OFFSET
 	sub	\rd, \rd, #PG_DIR_SIZE
@@ -74,12 +114,40 @@
  * crap here - that's what the boot loader (or in extreme, well justified
  * circumstances, zImage) is for.
  */
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * 우리가 사용하는 라즈베리파이의 정보이다.
+ * (linux/arch/arm/tools/mach-types)
+ *
+ * machine_is_xxx     CONFIG_xxxx      MACH_TYPE_xxx       number 
+ *     bcm2709        MACH_BCM2709         BCM2709          3139
+ *
+ * .arm 모드로 시작
+ *
+ *   #define __HEAD		.section	".head.text","ax"
+ *  __HEAD: 섹션을 정의
+ */
 	.arm
 
 	__HEAD
+
 /* IAMROOT-12D (2016-01-30):
  * --------------------------
  * 여기부터 시작
+ * #include <linux/linkage.h>
+ * 
+ * #ifndef ENTRY                                                                   
+ * #define ENTRY(name) \                                                           
+ *          .globl name ASM_NL \                                                    
+ *          ALIGN ASM_NL \                                                          
+ *          name:                                                                   
+ * #endif 
+ * 
+ * .globl stext ;
+ * ALIGN ;
+ * stext:
+ *
+ * stext를 글로벌로 선언하고, 레이블을 생성한다.
  */
 ENTRY(stext)
  ARM_BE8(setend	be )			@ ensure we are in BE8 mode
@@ -92,6 +160,19 @@ ENTRY(stext)
 #ifdef CONFIG_ARM_VIRT_EXT
 	bl	__hyp_stub_install
 #endif
+
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * r9은 스크래치 레지스터이다. 
+ * 참고] 스크래치 레지스터: 고양이가 할퀴듯 아무렇게나 사용하는 레지스터
+ *
+ * safe_svcmode_maskall : 모든 인터럽트를 중단하고, 안전하게 svc모드로 변경된다. 
+ *
+ * __lookup_processor_type: cpuid를 r9으로 넘겨주고, r5에 프로세스정보를 얻는다.
+ *
+ * __error_p: 프로세서 타입 찾다가 에러
+ * __error_lpae: LPAE 에러
+ */
 	@ ensure svc mode and all interrupts masked
 	safe_svcmode_maskall r9
 
@@ -109,6 +190,21 @@ ENTRY(stext)
 	blo	__error_lpae			@ only classic page table format
 #endif
 
+
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * 참고: XIP - 커널을 압축하지않고 ROM FLASH에서 바로 실행되는 커널
+ *
+ * MMU가 Off상태이기 때문에 물리주소를 직접 이용한다.
+ *
+ *   r3: 2번 레이블의 물리주소가 담긴다. (예: 0x8080)
+ *   r4: 2번 레이블의 가상주소 (0x80008080)
+ *       (r4 = r3 - r4 = 0x8080 - 0x80008080 = 0x80000000)
+ *   r8: 가상 메모리 시작 Offset (0x80000000)
+ *       오버플로우 발생으로 인해 더한값이 0 이 된다.
+ *       add 연산 후, 물리 메모리 Offset 이 된다.
+ *       (r8 = r8 + r4 = 0x80000000 + 0x80000000 = 0x0)
+ */
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
 	ldmia	r3, {r4, r8}
@@ -122,13 +218,40 @@ ENTRY(stext)
 	 * r1 = machine no, r2 = atags or dtb,
 	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
+
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * atags 포인터의 유효성 검사
+	 */
 	bl	__vet_atags
+
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * SMP: Symmetric Multi Processing
+	 *
+	 * __fixup_smp를 call 하는 목적
+	 *  : UP환경에서 SMP명령어를 교체하기 위해
+	 */
 #ifdef CONFIG_SMP_ON_UP
 	bl	__fixup_smp
 #endif
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * PV : Physical Virtual
+	 *
+	 * __fixup_pv_table를 call하는 목적
+	 *  : TODO
+	 */
 #ifdef CONFIG_ARM_PATCH_PHYS_VIRT
 	bl	__fixup_pv_table
 #endif
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __create_page_talbes 를 call하는 목적
+	 *  : page table들을 만들기 위해
+	 */
 	bl	__create_page_tables
 
 	/*
@@ -138,6 +261,29 @@ ENTRY(stext)
 	 * above.  On return, the CPU will be ready for the MMU to be
 	 * turned on, and r0 will hold the CPU control register value.
 	 */
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * r10에 담겨있는 구조체 형태
+ *
+ * struct proc_info_list {
+ * 	unsigned int		cpu_val;
+ * 	unsigned int		cpu_mask;
+ * 	unsigned long		__cpu_mm_mmu_flags;	/ * used by head.S * /
+ * 	unsigned long		__cpu_io_mmu_flags;	/ * used by head.S * /
+ * 	unsigned long		__cpu_flush;		/ * used by head.S * /
+ * 	const char		*arch_name;
+ * 	const char		*elf_name;
+ * 	unsigned int		elf_hwcap;
+ * 	const char		*cpu_name;
+ * 	struct processor	*proc;
+ * 	struct cpu_tlb_fns	*tlb;
+ * 	struct cpu_user_fns	*user;
+ * 	struct cpu_cache_fns	*cache;
+ * };
+ *
+ * TTBR1: 페이지테이블의 위치(주소)를 저장하는 CPU 레지스터
+ * 
+ */
 	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
@@ -149,6 +295,11 @@ ENTRY(stext)
 ENDPROC(stext)
 	.ltorg
 #ifndef CONFIG_XIP_KERNEL
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * . 은 현재의 주소
+ * PAGE_OFFSET은 0x80000000
+ */
 2:	.long	.
 	.long	PAGE_OFFSET
 #endif
@@ -164,11 +315,46 @@ ENDPROC(stext)
  *  r0, r3, r5-r7 corrupted
  *  r4 = page table (see ARCH_PGD_SHIFT in asm/memory.h)
  */
+
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __create_page_table :
+	 * 	memset(&page_table, 0, sizeof(&page_table))
+	 * 	
+	 * 		&page_tabe = 0x4000
+	 * 		sizeof(&page_table) = 0x4000
+	 * 
+         * r8 = 0x0
+         *
+	 * pgtbl r4, r8 분석
+	 *
+	 * add	r4, r8, #TEXT_OFFSET
+	 * sub	r4, r4, #PG_DIR_SIZE
+	 *
+         * rd = phys + TEXT_OFFSET - PG_DIR_SIZE;
+         * rd = phys + 0x8000 - 0x4000;
+         *
+         * 계산 과정
+	 * r4 = r8 + 0x8000 - 0x4000
+	 * r4 = 0x0 + 0x8000 - 0x4000
+	 * r4 = 0x4000
+	 */
+
 __create_page_tables:
 	pgtbl	r4, r8				@ page table address
 
 	/*
 	 * Clear the swapper page table
+	 */
+	/* IAMROOT-12D (2016-02-20):
+	 * --------------------------
+	 * r0 = r4; ( 0x4000 페이지테이블 시작점 )
+	 * r3 = 0;
+	 * r6 = 0x8000 ( 페이지테이블 끝지점 )
+	 * for(r0 = r4; r0<r6; r0++){
+	 * 	*(r0) = 0;
+	 * }
+	 *
 	 */
 	mov	r0, r4
 	mov	r3, #0
@@ -179,6 +365,12 @@ __create_page_tables:
 	str	r3, [r0], #4
 	teq	r0, r6
 	bne	1b
+	
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * LPAE : 32bit 주소 범위를 넘어서는 address 접근을 위한
+	 * address 확장 feature. raspberrypi는 스킵
+	 */
 
 #ifdef CONFIG_ARM_LPAE
 	/*
@@ -208,12 +400,45 @@ __create_page_tables:
 #endif
 #endif
 
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * r10 : procinfo address
+	 * r7 = proc_info->mm_mmuflags;
+         *
+         * #PROCINFO_MM_MMUFLAGS 를 따라가면, 아래와 같이 선언되어 있고,
+         *
+         * DEFINE(PROCINFO_MM_MMUFLAGS,
+         *               offsetof(struct proc_info_list, __cpu_mm_mmu_flags));
+         *
+	 * #define DEFINE(sym, val) \
+	 *        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+	 *
+	 * 결과적으로 다음 형태와 같은 뜻이 된다.
+	 * #define PROCINFO_MM_MMUFLAGS  8
+	 *
+	 * r7 = 0x11c0e
+	 * /arch/arm/mm/proc-v7.S 의 __v7_proc 매크로 주석 참고
+         *
+	 */
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
 	/*
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
 	 */
+        /* IAMROOT-12D (2016-02-27):
+         * --------------------------
+         * r0 = __turn_mmu_on_loc 의 물리 주소값 (0x8134)
+         * r3 = __turn_mmu_on_loc 의 가상 주소값 (0x80008134)
+         * r5 = __turn_mmu_on 의 주소값 (0x80008240)
+         * r6 = __turn_mmu_on_end 의 주소값 (0x80008260)
+         *
+         * r0 = r0 - r3 = 0x8134 - 0x80008134 = 0x80000000
+         * r5 = r5 + r0 = 0x80008240 + 0x80000000 = 0x8240
+         * r6 = r6 + r0 = 0x80008260 + 0x80000000 = 0x8260
+         * r5 = r5 >> 20 = 0x0
+         * r6 = r6 >> 20 = 0x0
+         */
 	adr	r0, __turn_mmu_on_loc
 	ldmia	r0, {r3, r5, r6}
 	sub	r0, r0, r3			@ virt->phys offset
@@ -222,6 +447,21 @@ __create_page_tables:
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
+        /* IAMROOT-12D (2016-02-27):
+         * --------------------------
+         * __turn_mmu_on 과 __turn_mmu_on_end 영역만 page table 매핑.
+         *
+         * r3 = r7 | (r5 << 20) = 0x11c0e | 0x0 = 0x11c0e
+         * *(r4 + (r5 << 2) ) = r3
+         * *(0x4000 + (0x0 << 2) ) = 0x11c0e
+         * *(0x4000) = 0x11c0e
+         *
+         * if( 0x0 < 0x0 ){           분기문 진입하지  않음
+         *      r5 = r5 + 1 = 0x1
+         *      goto 1b
+         * }
+         *
+         */
 1:	orr	r3, r7, r5, lsl #SECTION_SHIFT	@ flags + kernel base
 	str	r3, [r4, r5, lsl #PMD_ORDER]	@ identity mapping
 	cmp	r5, r6
@@ -485,6 +725,10 @@ ENDPROC(__turn_mmu_on)
 	.popsection
 
 
+/* IAMROOT-12D (2016-01-30):
+ * --------------------------
+ * #define ARM_CPU_PART_ARM11MPCORE	0x4100b020  
+ */
 #ifdef CONFIG_SMP_ON_UP
 	__HEAD
 __fixup_smp:
@@ -500,11 +744,31 @@ __fixup_smp:
 	teq	r3, r4			@ ARM 11MPCore?
 	reteq	lr			@ yes, assume SMP
 
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * http://www.iamroot.org/xe/index.php?mid=Kernel_10_ARM&page=2&document_srl=181691
+	 * 위 주소를 가면, 중간쯤에 MPIDR 관련 그림이 있다.
+	 *
+	 * MPDIR 구조
+	 * +----------------------------------------------------------------+
+	 * | 1 | U |                      ...                               |
+	 * +----------------------------------------------------------------+
+	 *   31  30                       ...                              0
+	 *
+	 *  30번째의 U가 uniprocessor를 판단할 수 있는 비트이다.
+	 *    0: Multiprocessor
+	 *    1: Uniprocessor
+	 */
 	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
 	and	r0, r0, #0xc0000000	@ multiprocessing extensions and
 	teq	r0, #0x80000000		@ not part of a uniprocessor system?
 	bne    __fixup_smp_on_up	@ no, assume UP
 
+	/* IAMROOT-12D (2016-01-30):
+	 * --------------------------
+	 * rasberrypi2는 ARM Cortex-A7이다. Architecture는 ARMv7-A이다.
+	 * 우리는 여기서 리턴될 것이다.
+	 */
 	@ Core indicates it is SMP. Check for Aegis SOC where a single
 	@ Cortex-A9 CPU is present but SMP operations fault.
 	mov	r4, #0x41000000
@@ -513,6 +777,17 @@ __fixup_smp:
 	teq	r3, r4			@ Check for ARM Cortex-A9
 	retne	lr			@ Not ARM Cortex-A9,
 
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * 2016-02-13부터 행복하게 시작
+	 * SCU (Snoop Control Unit) 이란?
+	 * 	L1과 L2와의 일관성을 중재하기 위한 제어장치이다.
+	 *
+	 * 다만, raspberrypi는 ARM Cortex-A7이므로 아래 코드를 타지 않는다.
+	 * 
+	 * TODO: what is ACP?
+	 * 	manage ACP accesses.
+	 */
 	@ If a future SoC *does* use 0x0 as the PERIPH_BASE, then the
 	@ below address check will need to be #ifdef'd or equivalent
 	@ for the Aegis platform.
@@ -525,6 +800,13 @@ ARM_BE8(rev	r0, r0)			@ byteswap if big endian
 	teq	r0, #0x0		@ is 1?
 	retne	lr
 
+	/* IAMROOT-12D (2016-02-13):
+	 * --------------------------
+	 * __fixup_smp_on_up은 UP(uni processor - core 1개) 로 설정되어 있을 때
+	 * 반드시 실행되는 코드이다.
+	 * 
+	 * 역할 : SMP용 코드를 UP용 코드로 모두 교체한다.
+	 */
 __fixup_smp_on_up:
 	adr	r0, 1f
 	ldmia	r0, {r3 - r5}
