@@ -183,6 +183,11 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 
 static const void * __init arch_get_next_mach(const char *const **match)
 {
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * __arch_info_begin = section ".init.arch.info"
+	 * arch/arm/mach-bcm2709/bcm2709.c 참고
+	 */
 	static const struct machine_desc *mdesc = __arch_info_begin;
 	const struct machine_desc *m = mdesc;
 
@@ -201,10 +206,32 @@ static const void * __init arch_get_next_mach(const char *const **match)
  * If a dtb was passed to the kernel in r2, then use it to choose the
  * correct machine_desc and to setup the system.
  */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * static const struct machine_desc __mach_desc_BCM_2709
+ * _used
+ *  __attribute__((__section__(".arch.info.init"))) = {
+ *		.nr     = MACH_TYPE_BCM_2709
+ *		.name   = "BCM_2709",
+ *		.smp		= smp_ops(bcm2709_smp_ops),
+ *		.map_io = bcm2709_map_io,
+ *		.init_irq = bcm2709_init_irq,
+ *		.init_time = bcm2709_timer_init,
+ *		.init_machine = bcm2709_init,
+ *		.init_early = bcm2709_init_early,
+ *		.reserve = board_reserve,
+ *		.restart	= bcm2709_restart,
+ *		.dt_compat = bcm2709_compat,
+ * };
+ */
 const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 {
 	const struct machine_desc *mdesc, *mdesc_best = NULL;
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 라즈베리파이2에는 CONFIG_ARCH_MULTIPLATFORM 가 셋팅 되어 있지 않다.
+ */
 #ifdef CONFIG_ARCH_MULTIPLATFORM
 	DT_MACHINE_START(GENERIC_DT, "Generic DT based system")
 	MACHINE_END
@@ -212,9 +239,18 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	mdesc_best = &__mach_desc_GENERIC_DT;
 #endif
 
+	/* IAMROOT-12D (2016-06-09):
+	 * --------------------------
+	 * 간단한 fdt헤더 검사와 crc32을 만든다.
+	 */
 	if (!dt_phys || !early_init_dt_verify(phys_to_virt(dt_phys)))
 		return NULL;
 
+	/* IAMROOT-12A:
+	 * ------------
+	 * 현재 시스템에 맞는 머신 디스크립터를 찾아온다.
+	 * (잘 찾아올거라 예상하고 분석하지 않음)
+	 */
 	mdesc = of_flat_dt_match_machine(mdesc_best, arch_get_next_mach);
 
 	if (!mdesc) {
@@ -237,6 +273,10 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 		dump_machine_table(); /* does not return */
 	}
 
+	/* IAMROOT-12D (2016-06-11):
+	 * --------------------------
+	 * 라즈베리파이2는 dt_fixup 함수가 없음.
+	 */
 	/* We really don't want to do this, but sometimes firmware provides buggy data */
 	if (mdesc->dt_fixup)
 		mdesc->dt_fixup();

@@ -449,13 +449,36 @@ void of_fdt_unflatten_tree(unsigned long *blob,
 EXPORT_SYMBOL_GPL(of_fdt_unflatten_tree);
 
 /* Everything below here references initial_boot_params directly. */
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * dt_root_size_cells = \ { #address-cells }	= 1
+ * dt_root_addr_cells = \ { #size-cells }	= 1
+ *
+ * arch/arm/boot/dts/skeleton.dtsi
+ * / {
+ * 	#address-cells = <1>;
+ * 	#size-cells = <1>;
+ *	...
+ * };
+ */
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * Setup flat device-tree pointer
+ * fdt 주소로 설정 되어 있다.(가상주소 0x8xxxxxxx 대역)
+ */
 void *initial_boot_params;
 
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * fdt 테이블 데이터 crc32값
+ * CRC(Cyclic Redundancy Check)는 시리얼 전송에서 데이타의 신뢰성을 검증하기
+ *	위한 에러 검출 방법의 일종이다.
+ */
 static u32 of_fdt_crc32;
 
 /**
@@ -606,6 +629,10 @@ void __init early_init_fdt_scan_reserved_mem(void)
  * used to extract the memory information at boot before we can
  * unflatten the tree
  */
+/* IAMROOT-12D (2016-06-11):
+ * --------------------------
+ * of_scan_flat_dt(early_init_dt_scan_chosen, boot_command_line);
+ */
 int __init of_scan_flat_dt(int (*it)(unsigned long node,
 				     const char *uname, int depth,
 				     void *data),
@@ -682,6 +709,13 @@ struct fdt_scan_status {
 	void *data;
 };
 
+/* IAMROOT-12D (2016-06-09):
+ * --------------------------
+ * arch/arm/boot/dts/bcm2709-rpi-2-b.dts 참고
+ * {	compatible = "brcm,bcm2709";
+ *	model = "Raspberry Pi 2 Model B";
+ * }
+ */
 const char * __init of_flat_dt_get_machine_name(void)
 {
 	const char *name;
@@ -702,6 +736,11 @@ const char * __init of_flat_dt_get_machine_name(void)
  * Iterate through machine match tables to find the best match for the machine
  * compatible string in the FDT.
  */
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * setup_machine_fdt에서 호출 됨
+ *  of_flat_dt_match_machine(mdesc_best=NULL, arch_get_next_mach);
+ */
 const void * __init of_flat_dt_match_machine(const void *default_match,
 		const void * (*get_next_compat)(const char * const**))
 {
@@ -711,6 +750,11 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 	unsigned long dt_root;
 	unsigned int best_score = ~1, score = 0;
 
+	/* IAMROOT-12D (2016-05-26):
+	 * --------------------------
+	 * 초기값 dt_root = 0
+	 * get_next_compat --> arch_get_next_mach
+	 */
 	dt_root = of_get_flat_dt_root();
 	while ((data = get_next_compat(&compat))) {
 		score = of_flat_dt_match(dt_root, compat);
@@ -737,6 +781,10 @@ const void * __init of_flat_dt_match_machine(const void *default_match,
 		return NULL;
 	}
 
+	/* IAMROOT-12D (2016-06-09):
+	 * --------------------------
+	 * Machine model: Raspberry Pi 2 Model B Rev 1.1
+	 */
 	pr_info("Machine model: %s\n", of_flat_dt_get_machine_name());
 
 	return best_data;
@@ -872,6 +920,17 @@ u64 __init dt_mem_next_cell(int s, const __be32 **cellp)
 /**
  * early_init_dt_scan_memory - Look for an parse memory nodes
  */
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * arch/arm/boot/dts/skeleton.dtsi
+ * / {
+ * 	#address-cells = <1>;
+ * 	#size-cells = <1>;
+ * 	chosen { };
+ * 	aliases { };
+ * 	memory { device_type = "memory"; reg = <0 0>; };
+ * };
+ */
 int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 				     int depth, void *data)
 {
@@ -944,6 +1003,11 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	 */
 	((char *)data)[0] = '\0';
 
+/* IAMROOT-12CD (2016-06-17):
+ * --------------------------
+ * 라즈베리파이2
+ *  CONFIG_CMDLINE="console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait"
+ */
 #ifdef CONFIG_CMDLINE
 	strlcpy(data, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 
@@ -1043,6 +1107,10 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 }
 #endif
 
+/* IAMROOT-12D (2016-05-26):
+ * --------------------------
+ * 간단한 fdt헤더 검사와 crc32을 만든다.
+ */
 bool __init early_init_dt_verify(void *params)
 {
 	if (!params)

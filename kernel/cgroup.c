@@ -126,6 +126,17 @@ static struct workqueue_struct *cgroup_pidlist_destroy_wq;
 #define SUBSYS(_x) [_x ## _cgrp_id] = &_x ## _cgrp_subsys,
 static struct cgroup_subsys *cgroup_subsys[] = {
 #include <linux/cgroup_subsys.h>
+	/* IAMROOT-12D (2016-05-04):
+	 * --------------------------
+	 * [cpuset_cgrp_id] = &cpuset_cgrp_subsys,
+	 * [cpu_cgrp_id] = &cpu_cgrp_subsys,
+	 * [cpuacct_cgrp_id] = &cpuacct_cgrp_subsys,
+	 * [blkio_cgrp_id] = &blkio_cgrp_subsys,
+	 * [memory_cgrp_id] = &memory_cgrp_subsys,
+	 * [devices_cgrp_id] = &devices_cgrp_subsys,
+	 * [freezer_cgrp_id] = &freezer_cgrp_subsys,
+	 * [net_cls_cgrp_id] = &net_cls_cgrp_subsys,
+	 */
 };
 #undef SUBSYS
 
@@ -133,6 +144,17 @@ static struct cgroup_subsys *cgroup_subsys[] = {
 #define SUBSYS(_x) [_x ## _cgrp_id] = #_x,
 static const char *cgroup_subsys_name[] = {
 #include <linux/cgroup_subsys.h>
+	/* IAMROOT-12D (2016-05-04):
+	 * --------------------------
+	 * [cpuset_cgrp_id] = "cpuset",
+	 * [cpu_cgrp_id] = "cpu",
+	 * [cpuacct_cgrp_id] = "cpuacct",
+	 * [blkio_cgrp_id] = "blkio",
+	 * [memory_cgrp_id]  = "memory",
+	 * [devices_cgrp_id] = "devices",
+	 * [freezer_cgrp_id] = "freezer",
+	 * [net_cls_cgrp_id] = "net_cls",
+	 */
 };
 #undef SUBSYS
 
@@ -4891,6 +4913,20 @@ static struct kernfs_syscall_ops cgroup_kf_syscall_ops = {
 	.rename			= cgroup_rename,
 };
 
+/* IAMROOT-12D (2016-05-04):
+ * --------------------------
+ * ss 는 아래의 목록중 한개
+ * static struct cgroup_subsys *cgroup_subsys[] = {
+ * 	[cpuset_cgrp_id] = &cpuset_cgrp_subsys,
+ * 	[cpu_cgrp_id] = &cpu_cgrp_subsys,
+ * 	[cpuacct_cgrp_id] = &cpuacct_cgrp_subsys,
+ * 	[blkio_cgrp_id] = &blkio_cgrp_subsys,
+ * 	[memory_cgrp_id] = &memory_cgrp_subsys,
+ * 	[devices_cgrp_id] = &devices_cgrp_subsys,
+ * 	[freezer_cgrp_id] = &freezer_cgrp_subsys,
+ * 	[net_cls_cgrp_id] = &net_cls_cgrp_subsys,
+ * };
+ */
 static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 {
 	struct cgroup_subsys_state *css;
@@ -4947,6 +4983,14 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
  * Initialize cgroups at system boot, and initialize any
  * subsystems that request early init.
  */
+/* IAMROOT-12D (2016-04-30):
+ * --------------------------
+ * cgroup 이란?
+ *  - 프로세스들을 그룹화하여 그룹에 자원을 분배하거나 제어하는
+ *  기능을 제공해준다.
+ *  - 실질적인 자원 분배를 위해서는 subsystem이 필요하며 인터페이스로서 특정 
+ *  파일시스템을 마운트해야하는 것으로 보인다.
+ */
 int __init cgroup_init_early(void)
 {
 	static struct cgroup_sb_opts __initdata opts;
@@ -4954,6 +4998,11 @@ int __init cgroup_init_early(void)
 	int i;
 
 	init_cgroup_root(&cgrp_dfl_root, &opts);
+	/* IAMROOT-12D (2016-04-30):
+	 * --------------------------
+	 * cgroup root의 경우 어떠한 subsystem의 영향을 받지 않기에
+	 * CSS NO REF 로 설정한다.
+	 */
 	cgrp_dfl_root.cgrp.self.flags |= CSS_NO_REF;
 
 	RCU_INIT_POINTER(init_task.cgroups, &init_css_set);

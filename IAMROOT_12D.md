@@ -1,5 +1,111 @@
 # Iamroot ARM Kernel 분석 12차 D조 (http://www.iamroot.org)
 
+## 제 60주차 스터디
+
+#### 날짜: 2016-06-11
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김영준 (iam.yeongjunkim@gmail.com)*
+ - 조훈근 (hoonycho12@gmail.com)
+ - 김민호 (8891m@naver.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+
+## 제 59주차 스터디
+#### 날짜: 2016-06-04
+#### 장소: 휴가
+
+
+## 제 58주차 스터디
+
+#### 날짜: 2016-05-28
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김민호 (8891m@naver.com)*
+ - 안종찬 (ahnchan2@gmail.com)
+ - 김영준 (iam.yeongjunkim@gmail.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+
+
+## 제 57주차 스터디
+
+#### 날짜: 2016-05-21
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **김민호 (8891m@naver.com)**
+ - *임채훈 (im.fehead@gmail.com)*
+ - 안종찬 (ahnchan2@gmail.com)
+
+## 제 56주차 스터디
+
+#### 날짜: 2016-05-14
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **안종찬 (ahnchan2@gmail.com)**
+ - *김민호 (8891m@naver.com)*
+ - 임채훈 (im.fehead@gmail.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+ - 조훈근 (hoonycho12@gmail.com)
+ - 김영준 (iam.yeongjunkim@gmail.com)
+ - 곽승준 (rialtoksj@yahoo.com)
+ - 곽희범 (andrew@norux.me)
+
+## 제 55주차 스터디
+
+#### 날짜: 2016-05-07
+#### 휴가 
+
+## 제 54주차 스터디
+
+#### 날짜: 2016-04-30
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **김민호 (8891m@naver.com)**
+ - *안종찬 (ahnchan2@gmail.com)*
+ - 임채훈 (im.fehead@gmail.com)
+
+## 제 53주차 스터디
+
+#### 날짜: 2016-04-23
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *김민호 (8891m@naver.com)*
+ - 안종찬 (ahnchan2@gmail.com)
+
+## 제 52주차 스터디
+
+#### 날짜: 2016-04-16
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **임채훈 (im.fehead@gmail.com)**
+ - *조훈근 (hoonycho12@gmail.com)*
+ - 김영준 (iam.yeongjunkim@gmail.com)
+ - 권세홍 (sehongkwon2.24@gmail.com)
+ - 박병배 (i.billpark@gmail.com)
+
+## 제 51주차 스터디
+
+#### 날짜: 2016-04-09
+#### 장소: 강남토즈타워점
+
+#### 참석자
+ - **권세홍 (sehongkwon2.24@gmail.com)**
+ - *조훈근 (hoonycho12@gmail.com)*
+ - 임채훈 (im.fehead@gmail.com)
+ - 김민호 (8891m@naver.com)
+ - 김지은 (yeswldms@gmail.com)
+ - 박병배 (i.billpark@gmail.com)
+ - 박종성 (jongsong.park@gmail.com)
+
 ## 제 50주차 스터디
 
 #### 날짜: 2016-04-02

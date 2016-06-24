@@ -44,6 +44,17 @@ extern int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
 #define SUBSYS(_x) _x ## _cgrp_id,
 enum cgroup_subsys_id {
 #include <linux/cgroup_subsys.h>
+	/* IAMROOT-12D (2016-05-04):
+	 * --------------------------
+	 * cpuset_cgrp_id,
+	 * cpu_cgrp_id,
+	 * cpuacct_cgrp_id,
+	 * blkio_cgrp_id,
+	 * memory_cgrp_id,
+	 * devices_cgrp_id,
+	 * freezer_cgrp_id,
+	 * net_cls_cgrp_id,
+	 */
 	CGROUP_SUBSYS_COUNT,
 };
 #undef SUBSYS
@@ -252,6 +263,13 @@ struct cgroup {
 	 * the closest ancestor which has the subsys enabled.  The
 	 * following lists all css_sets which point to this cgroup's css
 	 * for the given subsystem.
+	 */
+	/* IAMROOT-12D (2016-04-30):
+	 * --------------------------
+	 * cset이 cgroup subsystem들인지는 알겠다. 왜 e_ 라는 prefix는
+	 * 무엇을 의미하는가?
+	 *  : enabled cset을 의미한다. 즉 기존에 cset은 모든 cset을 가지고
+	 *  있다면 e_csets는 enable된 cset을 의미한다.
 	 */
 	struct list_head e_csets[CGROUP_SUBSYS_COUNT];
 
